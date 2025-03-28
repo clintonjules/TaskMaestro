@@ -1,4 +1,11 @@
 import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = str(Path(__file__).parent.parent.parent)
+sys.path.append(project_root)
+
 import requests
 from typing import Dict
 
@@ -6,6 +13,10 @@ from typing import Dict
 from openai import OpenAI # ChatGPT, DeepSeek, Grok
 import anthropic # Claude
 from google import genai # Gemini
+
+from ollama import ChatResponse, chat
+
+from src.utils.ollama_model import _ollama_model_installed
 
 # API Keys
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -59,15 +70,15 @@ class LLMAccess:
         self.provider = config.get('provider')
         self.model = config.get('model')
         self.api_key = config.get('api_key')
-        self.headers = config.get('headers', {"Content-Type": "application/json"})
         self.api_url = config.get('api_url')
-        self.local_url = config.get('local_url')
-
+        self.developer_content = config.get('developer_content', None)
+        
         if self.llm_type not in ('api', 'local'):
             raise ValueError("config 'type' must be either 'api' or 'local'")
         
         if self.llm_type == 'api' and self.provider not in API_LLM_PROVIDERS:
             raise ValueError(f"Unsupported provider: {self.provider}")
+     
         
     def call(self, prompt: str, **kwargs) -> str:
         """
@@ -94,6 +105,8 @@ class LLMAccess:
             elif self.provider == 'xai':
                 return self._call_xai(prompt, **kwargs)
             
+            else:
+                raise ValueError(f"Unsupported provider: {self.provider}")
             
         elif self.llm_type == 'local':
             return self._call_local(prompt, **kwargs)
@@ -101,23 +114,26 @@ class LLMAccess:
         else:
             raise ValueError(f"Unsupported llm_type: {self.llm_type}")
 
+
     def _call_openai(self, prompt: str, **kwargs) -> str:
         client = OpenAI(api_key=self.api_key)
         
-        system_message = kwargs.get("system", "You are a pirate. Talk in a pirate accent.")
-        
-        messages = kwargs.get("messages") or \
-        [
-            {"role": "developer", "content": system_message},
-            {"role": "user", "content": prompt}
-        ]
+        if self.developer_content:
+            messages = [
+                {"role": "developer", "content": self.developer_content},
+                {"role": "user", "content": prompt}
+            ]
+        else:
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
         
         response = client.chat.completions.create(
             model=self.model,
             messages=messages
         )
     
-        return response.id, response.choices[0].message.content
+        return response.choices[0].message.content
 
 
     def _call_anthropic(self, prompt: str, **kwargs) -> str:
@@ -131,23 +147,26 @@ class LLMAccess:
     
     def _call_xai(self, prompt: str, **kwargs) -> str:
         pass
-
+    
 
     def _call_local(self, prompt: str, **kwargs) -> str:
-        """
-        Call a local LLM in a generic manner.
-        The config should provide 'local_url' and optional headers.
-        """
-        pass
-    
-config = {
-    "id": "test-openai",
-    "type": "api",
-    "provider": "openai",
-    "model": "gpt-4o",
-    "api_key": OPENAI_API_KEY,
-}
+        # Use Ollama
+        if self.provider == 'ollama':
+            model_installed = _ollama_model_installed(self.model)
 
-llm = LLMAccess(config)
-response = llm.call(prompt="What is the capital of France?")
-print(response)
+            if model_installed:
+                if self.developer_content:
+                    response: ChatResponse = chat(model=self.model, messages=[
+                    {"role": "system", "content": self.developer_content},
+                    {"role": "user", "content": prompt}
+                    ])
+                    
+                else:
+                    response: ChatResponse = chat(model=self.model, messages=[
+                    {'role': 'user','content': prompt,},
+                    ])
+                
+                return response.message.content
+        
+            else:
+                raise ValueError(f"Model {self.model} is not installed")
