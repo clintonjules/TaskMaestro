@@ -1,0 +1,5 @@
+requests
+pytest
+openai
+anthropic
+google-genai
