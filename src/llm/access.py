@@ -1,13 +1,11 @@
 import os
 import sys
+from typing import Dict
 from pathlib import Path
 
 # Add project root to Python path
 project_root = str(Path(__file__).parent.parent.parent)
 sys.path.append(project_root)
-
-import requests
-from typing import Dict
 
 # LLM Client Providers
 from openai import OpenAI # ChatGPT, DeepSeek, Grok
@@ -38,9 +36,6 @@ API_LLM_PROVIDERS = [
     "deepseek",
     "xai"
 ]
-
-# Local LLM inference interfaces: Ollama, llama-cpp, huggingface
-
 
 class LLMAccess:
     """
@@ -137,7 +132,18 @@ class LLMAccess:
 
 
     def _call_anthropic(self, prompt: str, **kwargs) -> str:
-        pass
+        client = anthropic.Anthropic(api_key=self.api_key)
+        
+        response = client.messages.create(
+            model=self.model,
+            max_tokens=2048,
+            system=self.developer_content if self.developer_content else None,
+            messages= [
+                {"role": "user", "content": prompt}
+            ]
+        )
+        
+        return response.content[0].text
     
     def _call_google(self, prompt: str, **kwargs) -> str:
         pass
@@ -150,23 +156,23 @@ class LLMAccess:
     
 
     def _call_local(self, prompt: str, **kwargs) -> str:
-        # Use Ollama
-        if self.provider == 'ollama':
-            model_installed = _ollama_model_installed(self.model)
+        model_installed = _ollama_model_installed(self.model)
 
-            if model_installed:
-                if self.developer_content:
-                    response: ChatResponse = chat(model=self.model, messages=[
-                    {"role": "system", "content": self.developer_content},
-                    {"role": "user", "content": prompt}
-                    ])
-                    
-                else:
-                    response: ChatResponse = chat(model=self.model, messages=[
-                    {'role': 'user','content': prompt,},
-                    ])
+        if model_installed:
+            if self.developer_content:
+                response: ChatResponse = chat(model=self.model, messages=[
+                {"role": "system", "content": self.developer_content},
+                {"role": "user", "content": prompt}
+                ])
                 
-                return response.message.content
-        
             else:
-                raise ValueError(f"Model {self.model} is not installed")
+                response: ChatResponse = chat(model=self.model, messages=[
+                {'role': 'user','content': prompt,},
+                ])
+            
+            return response.message.content
+    
+        else:
+            raise ValueError(f"Model {self.model} is not installed")
+        
+
