@@ -14,7 +14,7 @@ from google import genai # Gemini
 
 from ollama import ChatResponse, chat
 
-from src.utils.ollama_model import _ollama_model_installed
+from src.utils.ollama_tools import ollama_model_installed
 
 # API Keys
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -23,10 +23,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 XAI_API_KEY = os.getenv("XAI_API_KEY")
-
-# Base URLs
-DEEPSEEK_URL = "https://api.deepseek.com"
-XAI_URL = "https://api.x.ai/v1"
 
 # LLM Providers
 API_LLM_PROVIDERS = [
@@ -49,30 +45,22 @@ class LLMAccess:
         """
         Initialize the LLMAccess instance.
 
-        Expected config keys:
-          - id: A unique identifier for this LLM instance.
-          - type: 'api' or 'local'
-          - provider: A generic identifier for the provider.
+        Config keys:
+          - llm_type: 'api' or 'local'
+          - api_provider: The name of the LLM provider.
           - model: Model identifier string.
-          - api_key: API key for API-based models (if applicable).
-          - api_url: (for API-based LLMs) The endpoint URL.
-          - local_url: (for local LLMs) The endpoint URL.
-          - headers: (optional) HTTP headers to include in requests.
+          - role_description: (optional) A system prompt for the model.
         """
-        self.config = config
-        self.id = config.get('id', 'default')
-        self.llm_type = config.get('type')
-        self.provider = config.get('provider')
+        self.llm_type = config.get('llm_type')
+        self.api_provider = config.get('api_provider')
         self.model = config.get('model')
-        self.api_key = config.get('api_key')
-        self.api_url = config.get('api_url')
-        self.developer_content = config.get('developer_content', None)
-        
+        self.role_description = config.get('role_description', [])
+
         if self.llm_type not in ('api', 'local'):
             raise ValueError("config 'type' must be either 'api' or 'local'")
         
-        if self.llm_type == 'api' and self.provider not in API_LLM_PROVIDERS:
-            raise ValueError(f"Unsupported provider: {self.provider}")
+        if self.llm_type == 'api' and self.api_provider not in API_LLM_PROVIDERS:
+            raise ValueError(f"Unsupported provider: {self.api_provider}")
      
         
     def call(self, prompt: str, **kwargs) -> str:
@@ -85,23 +73,23 @@ class LLMAccess:
             The generated response as a string.
         """
         if self.llm_type == 'api':
-            if self.provider == 'openai':
+            if self.api_provider == 'openai':
                 return self._call_openai(prompt, **kwargs)
         
-            elif self.provider == 'anthropic':
+            elif self.api_provider == 'anthropic':
                 return self._call_anthropic(prompt, **kwargs)
             
-            elif self.provider == 'google':
+            elif self.api_provider == 'google':
                 return self._call_google(prompt, **kwargs)
             
-            elif self.provider == 'deepseek':
+            elif self.api_provider == 'deepseek':
                 return self._call_deepseek(prompt, **kwargs)
             
-            elif self.provider == 'xai':
+            elif self.api_provider == 'xai':
                 return self._call_xai(prompt, **kwargs)
             
             else:
-                raise ValueError(f"Unsupported provider: {self.provider}")
+                raise ValueError(f"Unsupported provider: {self.api_provider}")
             
         elif self.llm_type == 'local':
             return self._call_local(prompt, **kwargs)
@@ -111,15 +99,10 @@ class LLMAccess:
 
 
     def _call_openai(self, prompt: str, **kwargs) -> str:
-        client = OpenAI(api_key=self.api_key)
+        client = OpenAI(api_key=OPENAI_API_KEY)
         
-        if self.developer_content:
-            messages = [
-                {"role": "developer", "content": self.developer_content},
-                {"role": "user", "content": prompt}
-            ]
-        else:
-            messages = [
+        messages = [
+                {"role": "developer", "content": self.role_description or []},
                 {"role": "user", "content": prompt}
             ]
         
@@ -132,12 +115,12 @@ class LLMAccess:
 
 
     def _call_anthropic(self, prompt: str, **kwargs) -> str:
-        client = anthropic.Anthropic(api_key=self.api_key)
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
         response = client.messages.create(
             model=self.model,
             max_tokens=2048,
-            system=self.developer_content if self.developer_content else None,
+            system=self.role_description or [],
             messages= [
                 {"role": "user", "content": prompt}
             ]
@@ -145,34 +128,60 @@ class LLMAccess:
         
         return response.content[0].text
     
+    
     def _call_google(self, prompt: str, **kwargs) -> str:
-        pass
+        client = genai.Client(api_key=GOOGLE_API_KEY)
+
+        response = client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+        )
+
+        return response.text
+    
     
     def _call_deepseek(self, prompt: str, **kwargs) -> str:
-        pass
+        client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": self.role_description or []},
+                {"role": "user", "content": prompt},
+            ],
+            stream=False
+        )
+
+        return response.choices[0].message.content
+    
     
     def _call_xai(self, prompt: str, **kwargs) -> str:
-        pass
+        client = OpenAI(
+            api_key=XAI_API_KEY,
+            base_url="https://api.x.ai/v1",
+        )
+
+        completion = client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": self.role_description or []},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        
+        return completion.choices[0].message.content
     
 
-    def _call_local(self, prompt: str, **kwargs) -> str:
-        model_installed = _ollama_model_installed(self.model)
+    def _call_local(self, prompt: str, role_description: str = None, **kwargs) -> str:
+        model_installed = ollama_model_installed(self.model)
 
         if model_installed:
-            if self.developer_content:
-                response: ChatResponse = chat(model=self.model, messages=[
-                {"role": "system", "content": self.developer_content},
+            response: ChatResponse = chat(model=self.model, messages=[
+                {"role": "system", "content": role_description},
                 {"role": "user", "content": prompt}
-                ])
-                
-            else:
-                response: ChatResponse = chat(model=self.model, messages=[
-                {'role': 'user','content': prompt,},
-                ])
+            ])
             
             return response.message.content
     
         else:
             raise ValueError(f"Model {self.model} is not installed")
-        
-
