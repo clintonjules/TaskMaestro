@@ -98,11 +98,11 @@ class LLMAccess:
             raise ValueError(f"Unsupported llm_type: {self.llm_type}")
 
 
-    def _call_openai(self, prompt: str, **kwargs) -> str:
+    def _call_openai(self, prompt: str, role_description: str = None, **kwargs) -> str:
         client = OpenAI(api_key=OPENAI_API_KEY)
         
         messages = [
-                {"role": "developer", "content": self.role_description or []},
+                {"role": "developer", "content": role_description},
                 {"role": "user", "content": prompt}
             ]
         
@@ -114,13 +114,13 @@ class LLMAccess:
         return response.choices[0].message.content
 
 
-    def _call_anthropic(self, prompt: str, **kwargs) -> str:
+    def _call_anthropic(self, prompt: str, role_description: str = None, **kwargs) -> str:
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
         response = client.messages.create(
             model=self.model,
             max_tokens=2048,
-            system=self.role_description or [],
+            system=role_description,
             messages= [
                 {"role": "user", "content": prompt}
             ]
@@ -129,24 +129,25 @@ class LLMAccess:
         return response.content[0].text
     
     
-    def _call_google(self, prompt: str, **kwargs) -> str:
+    def _call_google(self, prompt: str, role_description: str = None, **kwargs) -> str:
         client = genai.Client(api_key=GOOGLE_API_KEY)
 
         response = client.models.generate_content(
             model=self.model,
             contents=prompt,
+            system_instruction=role_description
         )
 
         return response.text
     
     
-    def _call_deepseek(self, prompt: str, **kwargs) -> str:
+    def _call_deepseek(self, prompt: str, role_description: str = None, **kwargs) -> str:
         client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
 
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
-                {"role": "system", "content": self.role_description or []},
+                {"role": "system", "content": role_description},
                 {"role": "user", "content": prompt},
             ],
             stream=False
@@ -155,7 +156,7 @@ class LLMAccess:
         return response.choices[0].message.content
     
     
-    def _call_xai(self, prompt: str, **kwargs) -> str:
+    def _call_xai(self, prompt: str, role_description: str = None, **kwargs) -> str:
         client = OpenAI(
             api_key=XAI_API_KEY,
             base_url="https://api.x.ai/v1",
@@ -164,7 +165,7 @@ class LLMAccess:
         completion = client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": self.role_description or []},
+                {"role": "system", "content": role_description},
                 {"role": "user", "content": prompt},
             ],
         )

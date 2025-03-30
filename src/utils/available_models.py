@@ -24,7 +24,11 @@ def get_available_api_providers() -> list[str]:
     available = {}
     
     if os.getenv("OPENAI_API_KEY"):
-        available["openai"] = get_model_ids(OpenAI())   
+        available["openai"] = [
+        model.id for model in OpenAI().models.list().data
+        if "gpt" in model.id and not any(term in model.id for term in ["preview", "audio", "transcribe"])
+    ]
+        get_model_ids(OpenAI())   
          
     if os.getenv("ANTHROPIC_API_KEY"):
         available["claude"] = get_model_ids(Anthropic())

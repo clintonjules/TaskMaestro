@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 import uuid
 
 import sys
-from typing import Dict
 from pathlib import Path
 
 # Add project root to Python path
@@ -29,15 +28,13 @@ class ManagerAgent:
         - llm_type: "api" or "local"
         - api_provider: One of the available providers listed below
         - model: One available model per provider
-        - role: "worker" or "manager"
-        - role_description: A clear system message for the new agent
         - task: A clear, specific instruction for the agent
-        - reason: The reason you chose the model you did
 
         Available API models: {get_available_api_providers()}
         Available local models: {get_available_local_models()}
 
-        Respond only with valid JSON format.
+        Respond only with valid JSON format. Nothing else.
+        The format should be \"\"\"{{\"agents\": [...]}}\"\"\"
         """
 
     def plan_task(self, task: str) -> str:
