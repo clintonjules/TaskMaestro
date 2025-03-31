@@ -26,12 +26,12 @@ def get_available_api_providers() -> list[str]:
     if os.getenv("OPENAI_API_KEY"):
         available["openai"] = [
         model.id for model in OpenAI().models.list().data
-        if "gpt" in model.id and not any(term in model.id for term in ["preview", "audio", "transcribe"])
+        if "gpt" in model.id and not any(term in model.id for term in ["preview", "audio", "transcribe", "tts"])
     ]
         get_model_ids(OpenAI())   
          
     if os.getenv("ANTHROPIC_API_KEY"):
-        available["claude"] = get_model_ids(Anthropic())
+        available["anthropic"] = get_model_ids(Anthropic())
         
     if os.getenv("DEEPSEEK_API_KEY"):
             available["deepseek"] = get_model_ids(OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com"))

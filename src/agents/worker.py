@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import ast
 
 # Add project root to Python path
 project_root = str(Path(__file__).parent.parent.parent)
@@ -8,11 +9,16 @@ sys.path.append(project_root)
 from src.llm.access import LLMAccess
 import uuid
 from datetime import datetime, timezone
+from src.agents.manager import ManagerAgent 
+
+MAX_RETRIES = 3
 
 class WorkerAgent:
     def __init__(self, config: dict):
+        self.config = config
         self.id = f"worker-{uuid.uuid4().hex[:8]}"
         self.llm = LLMAccess(config)
+        self.retries = 0
         self.role_description = """
         You are a WorkerAgent. Your job is to complete the task you are given with clarity, precision, and autonomy.
 
@@ -44,11 +50,17 @@ class WorkerAgent:
         if result == "atomic" or result == "not atomic":
             return result
         else:
-            raise ValueError("Invalid atomicity response from LLM")
+            if self.retries <= MAX_RETRIES:
+                self.retries += 1
+                
+                return self.assess_atomicity(task)
+            else:
+                raise ValueError("Invalid atomicity response from LLM", result)
 
     def handle_task(self, task: str) -> str:
         if self.assess_atomicity(task) == "atomic":
             return self.llm.call(task, role_description=self.role_description)
         else:
-            # raise ValueError("Task is not atomic")
-            return "Task is not atomic", task
+            manager = ManagerAgent(self.config)
+            
+            return manager.plan_task(task)
