@@ -6,9 +6,11 @@
 
 - **Agent Hierarchy**: A top-level ManagerAgent breaks down complex tasks into subtasks and delegates them to WorkerAgents or SubManagerAgents (which are just ManagerAgents handling subparts).
 - **Recursive Delegation**: If a Worker determines a task is too complex, it promotes itself to a ManagerAgent and subdivides the task further.
-- **Multi-Model Support**: Use OpenAI, Anthropic (Claude), Google (Gemini), DeepSeek, xAI (Grok), and local models via Ollama — all configurable via simple CLI arguments or LLM-generated specs.
+- **Multi-Model Support**: Use OpenAI, Anthropic (Claude), Google (Gemini), DeepSeek, xAI (Grok), and local models via Ollama — all configurable via simple CLI arguments.
 - **Dependency Awareness**: Tasks can specify dependencies using `depends_on`, and TaskMaestro will ensure execution happens in the correct order.
 - **LLM-Agnostic Routing**: A Router handles communication and execution order, resolving dependencies and delegating tasks across agents.
+- **Iterative Task Execution**: Support for task repetition based on conditions and results.
+- **Comprehensive Logging**: Detailed logging of task execution, dependencies, and results.
 
 ## 🧠 How It Works
 
@@ -30,31 +32,45 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## 🔑 Environment Setup
+
+Set up your API keys for the LLM providers you want to use:
+
+```bash
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export GOOGLE_API_KEY="your-google-key"
+export DEEPSEEK_API_KEY="your-deepseek-key"
+export XAI_API_KEY="your-xai-key"
+```
+
 ## 🧪 Running the Project
 
 ```bash
-python src/main.py --type api --provider openai --model gpt-4o
+python src/main.py --type api --provider openai --model gpt-4
 ```
 
 or with local models:
 
 ```bash
-python src/main.py --type local --model llama3
+python src/main.py --type local --model llama2
 ```
 
 ## 🛠 Available CLI Arguments
 
 | Flag         | Description                             | Required |
 |--------------|-----------------------------------------|----------|
-| `--type` / `-t`    | Either `api` or `local`                    | ✅        |
-| `--provider` / `-p` | LLM provider name (`openai`, `ollama`, etc) | 🔁        |
-| `--model` / `-m`   | Model name (`gpt-4o`, `mistral`, etc)     | ✅        |
+| `--type` / `-l`    | Either `api` or `local`                    | ✅        |
+| `--provider` / `-p` | LLM provider name (`openai`, `anthropic`, `google`, `deepseek`, `xai`) | 🔁        |
+| `--model` / `-m`   | Model name (e.g., `gpt-4`, `claude-3`, `gemini-pro`)     | ✅        |
+| `--task` / `-t`    | The task to execute (optional, defaults to "How to bake a cake") | ❌        |
 
 ## 🧩 Extending TaskMaestro
 
-- Add more LLM providers inside `LLMAccess` class in `access.py`
-- Modify role descriptions in `manager.py` and `worker.py`
-- Expand dependency handling logic in `router.py`
+- Add more LLM providers inside `LLMAccess` class in `src/llm/access.py`
+- Modify role descriptions in `src/agents/manager.py` and `src/agents/worker.py`
+- Expand dependency handling logic in `src/agents/router.py`
+- Add new logging features in `src/utils/logging.py`
 
 ## 🔮 Future Features
 
@@ -62,31 +78,14 @@ python src/main.py --type local --model llama3
 - Agent memory and message history
 - Interactive UI for task tree visualization
 - Parallel execution of independent agents
+- Enhanced error handling and retry mechanisms
+- Support for more LLM providers and models
 
-## 🤖 Example Output
+## 📝 Logging
 
-```json
-{
-  "agents": [
-    {
-      "llm_type": "api",
-      "api_provider": "openai",
-      "model": "gpt-4o",
-      "role": "worker",
-      "task": "List ingredients for a vanilla cake"
-    },
-    {
-      "llm_type": "local",
-      "model": "mistral",
-      "role": "worker",
-      "task": "Describe how to bake the cake",
-      "depends_on": "List ingredients for a vanilla cake"
-    }
-  ]
-}
-```
-
----
-
-Made with ⚙️, LLMs, and recursive ambition.
-
+TaskMaestro maintains detailed logs in the `logs` directory, with timestamps for each run. Logs include:
+- Task execution details
+- Dependency resolution
+- Agent interactions
+- Results and iterations
+- Error messages and warnings

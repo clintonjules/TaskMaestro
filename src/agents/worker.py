@@ -58,9 +58,10 @@ class WorkerAgent:
                 raise ValueError("Invalid atomicity response from LLM", result)
 
     def handle_task(self, task: str) -> str:
-        if self.assess_atomicity(task) == "atomic":
-            return self.llm.call(task, role_description=self.role_description)
-        else:
-            manager = ManagerAgent(self.config)
+        # if self.assess_atomicity(task) == "atomic":
+        #     return self.llm.call(task, role_description=self.role_description)
+        # else:
+        #     manager = ManagerAgent(self.config)
             
-            return manager.plan_task(task)
+        #     return manager.plan_task(task)
+        return self.llm.call(task, role_description=self.role_description)

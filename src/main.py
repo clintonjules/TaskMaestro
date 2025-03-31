@@ -36,7 +36,7 @@ def main():
     # Use the task from either positional or named argument
     task = args.task_arg if args.task_arg else args.task
     if not task:
-        task = "How to bake a cake"  # Default task if none provided
+        raise ValueError("Task is required")  # Default task if none provided
     
     task_info = f"\nTask: {task}"
     logger.info(task_info)
@@ -115,3 +115,4 @@ if __name__ == "__main__":
     main()
     
 # python src/main.py "Write a story about a robot" --type api -p anthropic -m claude-3-5-sonnet-20240620
+# python src/main.py "Write a story about a robot on a 7th grade level. It should be at least 800 words. The robot should be a detective named Alex." --type api -p anthropic -m claude-3-5-sonnet-20240620
