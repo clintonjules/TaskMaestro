@@ -9,7 +9,7 @@ def setup_logging():
     
     # Create a unique log file name with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = log_dir / f"taskmaestro_{timestamp}.log"
+    log_file = log_dir / f"ensemble_{timestamp}.log"
     
     # Create file handler for all logs
     file_handler = logging.FileHandler(log_file)
